@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ExtractKeys,
   SortOrder,
@@ -13,6 +13,10 @@ import { TableBody } from "./TableBody";
 import { TableDataCell } from "./TableDataCell";
 import { castToString } from "../../utils/helpers";
 import { ArrowDown, ArrowUp, CaretUpDown } from "@phosphor-icons/react";
+import { useRowSelection } from "./hooks/useRowSelection";
+import { useTableSorting } from "./hooks/useTableSortings";
+import { useExpandableRows } from "./hooks/useExpandableRows";
+import { useTableColumns } from "./hooks/useTableColumns";
 
 type Props<TData> = {
   children:
@@ -26,7 +30,8 @@ type Props<TData> = {
   onSortChange?: (sort: SortString<TData>) => void;
   selectedRows?: TData[];
   onRowSelectionChange?: (selectedRows: TData[]) => void;
-  expandableContent?: (rowData: TData) => React.ReactNode; // Funkcija za ekspanzibilni sadržaj
+  expandableContent?: (rowData: TData) => React.ReactNode;
+  rowActions?: (rowData: TData) => React.ReactNode;
 };
 
 const BaseTable = <TData,>({
@@ -40,115 +45,31 @@ const BaseTable = <TData,>({
   selectedRows = [],
   onRowSelectionChange,
   expandableContent,
+  rowActions,
 }: Props<TData>) => {
   const [localSelectedRows, setLocalSelectedRows] =
     useState<TData[]>(selectedRows);
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
-    const areRowsDifferent =
-      selectedRows.length !== localSelectedRows.length ||
-      selectedRows.some((row, index) => row !== localSelectedRows[index]);
+  const { handleSortChange, sortedBy } = useTableSorting(sort, onSortChange);
 
-    if (areRowsDifferent) {
-      setLocalSelectedRows(selectedRows);
-    }
-  }, [selectedRows, localSelectedRows]);
-
-  let columns = React.Children.toArray(children).filter((child) =>
-    React.isValidElement(child)
-  ) as React.ReactElement<TableColumnProps<TData, unknown>>[];
-
-  // Dodajemo indeksnu kolonu ako je omogućeno
-  if (hasIndexColumn) {
-    columns = [
-      {
-        props: {
-          name: "index",
-          label: "#",
-          width: 100,
-          render: (index: number) => index + 1,
-          valueSelector: () => undefined,
-        },
-      } as unknown as React.ReactElement<TableColumnProps<TData, unknown>>,
-      ...columns,
-    ];
-  }
-
-  // Dodajemo checkbox kolonu ako je `onRowSelectionChange` definisan
-  if (onRowSelectionChange) {
-    columns = [
-      {
-        props: {
-          name: "checkbox",
-          label: (
-            <input
-              type="checkbox"
-              checked={localSelectedRows.length === data.length}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  setLocalSelectedRows(data);
-                  onRowSelectionChange(data);
-                } else {
-                  setLocalSelectedRows([]);
-                  onRowSelectionChange([]);
-                }
-              }}
-            />
-          ),
-          render: (rowIndex: number) => (
-            <input
-              type="checkbox"
-              checked={localSelectedRows.some((row) => row === data[rowIndex])}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => {
-                e.stopPropagation();
-                let updatedSelectedRows: TData[] = [...localSelectedRows];
-                const row = data[rowIndex];
-
-                if (e.target.checked) {
-                  updatedSelectedRows.push(row);
-                } else {
-                  updatedSelectedRows = updatedSelectedRows.filter(
-                    (selectedRow) => selectedRow !== row
-                  );
-                }
-
-                setLocalSelectedRows(updatedSelectedRows);
-                onRowSelectionChange(updatedSelectedRows);
-              }}
-            />
-          ),
-          valueSelector: () => undefined,
-        },
-      } as unknown as React.ReactElement<TableColumnProps<TData, unknown>>,
-      ...columns,
-    ];
-  }
-
-  const handleSortChange = useCallback(
-    (name: string) => {
-      const order = castToString(sort).split(" ")[1] as ExtractKeys<TData>;
-      const newSort = `${String(name)} ${
-        order === "asc" ? "desc" : "asc"
-      }` as SortString<TData>;
-
-      onSortChange?.(newSort);
-    },
-    [sort, onSortChange]
+  const { handleSelectAllRows, handleRowSelection } = useRowSelection(
+    data,
+    localSelectedRows,
+    setLocalSelectedRows,
+    onRowSelectionChange
   );
 
-  const sortedBy = castToString(sort).split(" ")[0] as ExtractKeys<TData>;
+  const { expandedRows, toggleExpandRow } = useExpandableRows();
 
-  const toggleExpandRow = (rowIndex: number) => {
-    const newExpandedRows = new Set(expandedRows);
-    if (newExpandedRows.has(rowIndex)) {
-      newExpandedRows.delete(rowIndex);
-    } else {
-      newExpandedRows.add(rowIndex);
-    }
-    setExpandedRows(newExpandedRows);
-  };
+  const columns = useTableColumns({
+    children,
+    hasIndexColumn,
+    data,
+    localSelectedRows,
+    handleSelectAllRows,
+    handleRowSelection,
+    onRowSelectionChange,
+  });
 
   return (
     <Table
@@ -157,7 +78,6 @@ const BaseTable = <TData,>({
     >
       <TableHead>
         <TableRow>
-          {/* Prikazujemo prazan string za kolonu ekspanzije ako je prosleđena */}
           {expandableContent && (
             <TableHeaderCell style={{ width: 50 }}></TableHeaderCell>
           )}
@@ -199,6 +119,7 @@ const BaseTable = <TData,>({
               </div>
             </TableHeaderCell>
           ))}
+          {rowActions && <TableHeaderCell style={{ textAlign: "right" }} />}
         </TableRow>
       </TableHead>
       <TableBody>
@@ -210,15 +131,14 @@ const BaseTable = <TData,>({
               }`}
               onClick={() => {
                 onRowClick?.(rowData);
-                toggleExpandRow(rowIndex); // Toggle expand row
+                toggleExpandRow(rowIndex);
               }}
             >
-              {/* Ikona za ekspanziju, prikazuje se samo ako je prosleđena expandableContent */}
               {expandableContent && (
                 <TableDataCell>
                   <span
                     onClick={(e) => {
-                      e.stopPropagation(); // Prevent row click
+                      e.stopPropagation();
                       toggleExpandRow(rowIndex);
                     }}
                   >
@@ -245,12 +165,19 @@ const BaseTable = <TData,>({
                   )}
                 </TableDataCell>
               ))}
+              {rowActions && (
+                <TableDataCell style={{ textAlign: "right" }}>
+                  {rowActions(rowData)}
+                </TableDataCell>
+              )}
             </TableRow>
             {expandedRows.has(rowIndex) && (
-              <TableRow >
-                <TableDataCell className="border-b border-black" colSpan={columns.length + 1}>
+              <TableRow>
+                <TableDataCell
+                  className="border-b border-black"
+                  colSpan={columns.length + 2}
+                >
                   {expandableContent?.(rowData)}{" "}
-                  {/* Render expandable content */}
                 </TableDataCell>
               </TableRow>
             )}

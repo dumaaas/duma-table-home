@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import PageWrapper from "../components/PageWrapper/PageWrapper";
 import BaseTable from "../components/Table/BaseTable";
 import { SortString, TableColumn } from "../components/Table/TableColumn";
-import { Envelope } from "@phosphor-icons/react";
+import { Envelope, Pen, Trash } from "@phosphor-icons/react";
 import Pagination from "../components/Pagination/Pagination";
 import { faker } from "@faker-js/faker";
 
@@ -32,10 +32,8 @@ const Home = () => {
     return users;
   };
 
-  // Koristimo useMemo da generišemo korisnike samo jednom
   const allUsers = useMemo(() => generateRandomUsers(300), []);
 
-  // Sortiraj korisnike
   const sortedUsers = useMemo(() => {
     const sorted = [...allUsers].sort((a, b) => {
       const [key, order] = sort.split(" ") as [keyof User, "asc" | "desc"];
@@ -48,10 +46,9 @@ const Home = () => {
     return sorted;
   }, [allUsers, sort]);
 
-  // Prikazani korisnici na trenutnoj stranici
   const displayedUsers = sortedUsers
-    .filter((user) => user.name.toLowerCase().includes(search.toLowerCase())) // Filtriraj po pretrazi
-    .slice(skipCount, skipCount + rowsPerPage); // Izrezivanje korisnika
+    .filter((user) => user.name.toLowerCase().includes(search.toLowerCase()))
+    .slice(skipCount, skipCount + rowsPerPage);
 
   return (
     <PageWrapper title="Home">
@@ -70,7 +67,16 @@ const Home = () => {
             <div>
               <p>Details for {rowData.name}</p>
               <p>Email: {rowData.email}</p>
-              {/* Dodaj još informacija ili komponenti */}
+            </div>
+          )}
+          rowActions={(rowData) => (
+            <div className="flex justify-end items-center gap-2">
+              <button onClick={() => console.log(rowData)}>
+                <Pen className="text-black" />
+              </button>
+              <button onClick={() => console.log(rowData)}>
+                <Trash className="text-red-500"/>
+              </button>
             </div>
           )}
           onSortChange={(newSort) => {
@@ -126,14 +132,14 @@ const Home = () => {
               onClick={() => setShowSelectedRows(!showSelectedRows)}
               className="pt-4 cursor-pointer bg-white border border-black p-4 max-w-fit ml-auto"
             >
-              <h3>{showSelectedRows ? 'Hide' : 'Show'} selected rows</h3>
+              <h3>{showSelectedRows ? "Hide" : "Show"} selected rows</h3>
             </div>
             {showSelectedRows && (
               <div className="bg-white border border-black p-4 mt-1">
                 <ul>
                   {selectedRows.map((user, index) => (
                     <li key={user.id}>
-                      {index+1}. {user.name} - {user.email}
+                      {index + 1}. {user.name} - {user.email}
                     </li>
                   ))}
                 </ul>
