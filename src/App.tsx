@@ -1,10 +1,11 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import Home from "./pages/Home";
+import DumaTable from "./pages/DumaTable";
+import 'duma-table/dist/styles.css';
 
 const App = () => (
   <BrowserRouter basename="/">
     <Routes>
-      <Route path="/" Component={Home} />
+      <Route path="/" Component={DumaTable} />
     </Routes>
   </BrowserRouter>
 );
