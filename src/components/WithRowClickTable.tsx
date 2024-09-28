@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Envelope, Pen, Trash } from "@phosphor-icons/react";
+import { Envelope } from "@phosphor-icons/react";
 import Pagination from "../components/Pagination/Pagination";
 import { faker } from "@faker-js/faker";
 import { SortString } from "duma-table/dist/types/TableColumn";

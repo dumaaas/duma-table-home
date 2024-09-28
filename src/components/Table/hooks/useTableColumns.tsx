@@ -83,6 +83,8 @@ export function useTableColumns<TData>({
     childArray,
     hasIndexColumn,
     onRowSelectionChange,
+    handleRowSelection,
+    handleSelectAllRows,
     data,
     localSelectedRows,
   ]);
